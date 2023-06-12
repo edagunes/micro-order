@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.util.Date;
 import java.util.List;
 
 
@@ -32,7 +31,15 @@ public class Order {
 
     private Integer totalPrice;
     private LocalDate createDate;
-    @OneToMany(cascade = CascadeType.ALL)
-    private List<OrderLineItems> orderLineItemsList;
+    @ElementCollection
+    @CollectionTable(
+            name = "PRODUCT_IDS",
+            joinColumns = @JoinColumn(
+                    name = "ORDER_ID",
+                    referencedColumnName = "ID"
+            )
+    )
+    @Column(name = "PRODUCT_IDS")
+    List<Long> productIds;
 
 }

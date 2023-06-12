@@ -3,17 +3,17 @@ package com.mealkit.order.controller;
 import com.mealkit.order.dto.requests.OrderRequest;
 import com.mealkit.order.model.Order;
 import com.mealkit.order.service.OrderService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+
 
 @RestController
 @RequestMapping("/api/v1/order")
+@RequiredArgsConstructor
 public class OrderController {
 
     private final OrderService orderService;
-
-    public OrderController(OrderService orderService) {
-        this.orderService = orderService;
-    }
 
     @GetMapping
     public Iterable<Order> getAllOrders(){
@@ -26,12 +26,12 @@ public class OrderController {
     }
 
     @PostMapping
-    public void placeOrder(@RequestBody OrderRequest placeOrderRequest){
+    public void placeOrder(@RequestBody OrderRequest placeOrderRequest) throws Exception {
         orderService.placeOrder(placeOrderRequest);
     }
 
     @DeleteMapping("/{orderId}")
-    public void deleteOneOrder(@PathVariable Long orderId){
+    public void deleteOneOrder(@PathVariable Long orderId) throws Exception {
         orderService.deleteOneOrderById(orderId);
     }
 }
