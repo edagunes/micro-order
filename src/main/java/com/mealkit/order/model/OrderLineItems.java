@@ -17,8 +17,7 @@ public class OrderLineItems {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private BigDecimal price;
-    private Integer quantity;
+    private Integer price;
 
 /*    @ManyToOne
     @MapsId("orderId")

@@ -6,10 +6,10 @@ import com.mealkit.order.service.OrderService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/")
+@RequestMapping("/api/v1/order")
 public class OrderController {
 
-    private OrderService orderService;
+    private final OrderService orderService;
 
     public OrderController(OrderService orderService) {
         this.orderService = orderService;
@@ -26,8 +26,8 @@ public class OrderController {
     }
 
     @PostMapping
-    public String placeOrder(@RequestBody OrderRequest placeOrderRequest){
-        return orderService.placeOrder(placeOrderRequest);
+    public void placeOrder(@RequestBody OrderRequest placeOrderRequest){
+        orderService.placeOrder(placeOrderRequest);
     }
 
     @DeleteMapping("/{orderId}")

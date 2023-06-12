@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
@@ -30,8 +31,7 @@ public class Order {
     private String status;
 
     private Integer totalPrice;
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createDate;
+    private LocalDate createDate;
     @OneToMany(cascade = CascadeType.ALL)
     private List<OrderLineItems> orderLineItemsList;
 
