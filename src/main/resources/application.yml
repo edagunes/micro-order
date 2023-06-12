@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/orders
     username: postgres
-    password: 647099
+    password: 6586
   jpa:
     hibernate:
       ddl-auto: update
@@ -11,6 +11,8 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQL81Dialect
+server:
+  port: 0
   application:
     name: order
   rabbitmq:
@@ -18,5 +20,3 @@ spring:
     port: 5672
     username: guest
     password: guest
-server:
-  port: 8082

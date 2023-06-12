@@ -1,11 +1,11 @@
 package com.mealkit.order.service;
 
-import com.mealkit.order.dao.OrderLineItemsRepository;
 import com.mealkit.order.dao.OrderRepository;
-import com.mealkit.order.dto.OrderLineItemsDto;
+import com.mealkit.order.dto.IngredientDto;
+import com.mealkit.order.dto.ProductDto;
 import com.mealkit.order.dto.requests.OrderRequest;
 import com.mealkit.order.model.Order;
-import com.mealkit.order.model.OrderLineItems;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -13,59 +13,78 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.*;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class OrderService {
 
-    private static final String QUEUE_NAME = "stockUpdates";
+    private static final String STOCK_INCREASE = "stock.increase";
+
+    private static final String STOCK_DECREASE = "stock.decrease";
 
     private final OrderRepository orderRepository;
-
-    private final OrderLineItemsRepository orderLineItemsRepository;
 
     private final RabbitTemplate rabbitTemplate;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OrderService.class);
 
-    public OrderService(OrderRepository orderRepository, RabbitTemplate rabbitTemplate, OrderLineItemsRepository orderLineItemsRepository){
-        this.orderRepository = orderRepository;
-        this.rabbitTemplate = rabbitTemplate;
-        this.orderLineItemsRepository = orderLineItemsRepository;
-    }
-
     public Iterable<Order> getAllOrders() {
         return orderRepository.findAll();
     }
 
-    public void placeOrder(OrderRequest orderRequest) {
+    public void placeOrder(OrderRequest orderRequest) throws Exception {
+
+        final List<ProductDto> productList = orderRequest.getProductDtoList();
+
+        final HashMap<Long, Integer> totalIngredients = new HashMap<>();
+
+        calculateTotalIngredients(productList, totalIngredients);
+
+        validateIngredients(totalIngredients);
+
         final Order order = new Order();
 
-        final List<OrderLineItemsDto> orderLineItemsDtoList = orderRequest.getOrderLineItemsDtoList();
-        final List<OrderLineItems> orderLineItemsList = orderLineItemsDtoList.stream().map(orderLineItemsDto -> {
-            try {
-                return mapToEntity(orderLineItemsDto);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }).toList();
-        Integer totalPrice = 0;
-        for (OrderLineItems orderLineItems: orderLineItemsList){  //TODO Başka methoda taşı
-            totalPrice += orderLineItems.getPrice();
+        assert order != null;
+        if (!Objects.equals(order.getStatus(), "True")){
+            throw new Exception("Error");
         }
-        order.setOrderLineItemsList(orderLineItemsList);
-        //TODO: validate
+
+        Integer totalPrice = 0;
+        final List<Long> productIdList = new ArrayList<>();
+        for (ProductDto productDto: productList){
+            productIdList.add(productDto.getId());
+            totalPrice += productDto.getCount() * productDto.getPrice();
+        }
+
+        order.setProductIds(productIdList);
         order.setCreateDate(LocalDate.now());
-        order.setStatus("True");
         order.setTotalPrice(totalPrice);
+
         orderRepository.save(order);
         LOGGER.info(String.format("Json message sent -> %s", order));
-        rabbitTemplate.convertAndSend(QUEUE_NAME, orderLineItemsDtoList);
         LOGGER.info("Successful");
+    }
+
+    private void calculateTotalIngredients(List<ProductDto> productList, HashMap<Long, Integer> totalIngredients) {
+        for (ProductDto productDto: productList){
+            final List<IngredientDto> ingredientDtoList = productDto.getIngredientList();
+            for (IngredientDto ingredientDto: ingredientDtoList){
+                final Long id = ingredientDto.getId();
+                final Integer count = ingredientDto.getCount();
+                if (!totalIngredients.containsKey(id)){
+                    totalIngredients.put(id, count);
+                }
+                else{
+                    totalIngredients.put(id, totalIngredients.get(id) + count);
+                }
+            }
+        }
+    }
+
+    private void validateIngredients(HashMap<Long, Integer> totalIngredients) {
+        rabbitTemplate.convertAndSend(STOCK_INCREASE, totalIngredients);
     }
 
     public Order getOneOrderById(Long orderId) {
@@ -75,13 +94,4 @@ public class OrderService {
     public void deleteOneOrderById(Long orderId) {
         orderRepository.deleteById(orderId);
     }
-
-    private OrderLineItems mapToEntity(OrderLineItemsDto orderLineItemsDto) throws Exception {
-        final Optional<OrderLineItems> orderLineItemsOptional = orderLineItemsRepository.findById(orderLineItemsDto.getId());
-        if (orderLineItemsOptional.isPresent()){
-            return orderLineItemsOptional.get();
-        }
-        throw new Exception("Error");
-    }
-
 }
