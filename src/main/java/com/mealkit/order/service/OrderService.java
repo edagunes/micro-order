@@ -8,7 +8,9 @@ import com.mealkit.order.model.Order;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.amqp.core.DirectExchange;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,13 +22,14 @@ import java.util.*;
 @RequiredArgsConstructor
 public class OrderService {
 
-    private static final String STOCK_INCREASE = "stock.increase";
+    @Value("${rabbitmq.routing.key}")
+    private String routingKey;
 
-    private static final String STOCK_DECREASE = "stock.decrease";
+    private final DirectExchange exchange;
 
     private final OrderRepository orderRepository;
 
-    private final RabbitTemplate rabbitTemplate;
+    private final AmqpTemplate rabbitTemplate;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OrderService.class);
 
@@ -34,7 +37,7 @@ public class OrderService {
         return orderRepository.findAll();
     }
 
-    public void placeOrder(OrderRequest orderRequest) throws Exception {
+    public void placeOrder(OrderRequest orderRequest) {
 
         final List<ProductDto> productList = orderRequest.getProductDtoList();
 
@@ -45,11 +48,6 @@ public class OrderService {
         validateIngredients(totalIngredients);
 
         final Order order = new Order();
-
-        assert order != null;
-        if (!Objects.equals(order.getStatus(), "True")){
-            throw new Exception("Error");
-        }
 
         Integer totalPrice = 0;
         final List<Long> productIdList = new ArrayList<>();
@@ -84,7 +82,8 @@ public class OrderService {
     }
 
     private void validateIngredients(HashMap<Long, Integer> totalIngredients) {
-        rabbitTemplate.convertAndSend(STOCK_INCREASE, totalIngredients);
+        rabbitTemplate.convertAndSend(exchange.getName(), routingKey, totalIngredients);
+        LOGGER.info("Gönderildi "+totalIngredients.toString());
     }
 
     public Order getOneOrderById(Long orderId) {
